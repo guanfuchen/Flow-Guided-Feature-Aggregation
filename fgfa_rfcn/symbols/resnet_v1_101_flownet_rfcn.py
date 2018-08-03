@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -17,11 +18,14 @@ from operator_py.tile_as import *
 
 
 
+# resnet v1 101 flownet rfcn模型
 class resnet_v1_101_flownet_rfcn(Symbol):
     def __init__(self):
         """
         Use __init__ to define parameter network needs
         """
+        Symbol.__init__(self)
+        # eps数值稳定
         self.eps = 2e-5
         self.use_global_stats = True
         self.workspace = 512
@@ -738,9 +742,13 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         feat_conv_3x3 = mx.sym.Convolution(
             data=res5c_relu, kernel=(3, 3), pad=(6, 6), dilate=(6, 6), num_filter=1024, name="feat_conv_3x3")
         feat_conv_3x3_relu = mx.sym.Activation(data=feat_conv_3x3, act_type="relu", name="feat_conv_3x3_relu")
+        # digraph = mx.viz.plot_network(feat_conv_3x3_relu, save_format='png')
+        # digraph.render('/tmp/feat_conv_3x3_relu')
         return feat_conv_3x3_relu
 
+    # embedding网络结构，输入数据是feature，这里是resnet101
     def get_embednet(self, data):
+        # embedding network由3个网络层构造而成，包括1x1x512,3x3x512和1x1x2048的卷积
         em_conv1 = mx.symbol.Convolution(name='em_conv1', data=data, num_filter=512, pad=(0, 0),
                                         kernel=(1, 1), stride=(1, 1), no_bias=False)
         em_ReLU1 = mx.symbol.Activation(name='em_ReLU1', data=em_conv1, act_type='relu')
@@ -756,13 +764,16 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
     # compute aggregation weight
     # assume it's 4 dim
+    # 计算聚合权重，假设是4维度，输入为先前帧warp到当前帧的embed和当前帧的embed，然后利用cosine相似性度量来测对应的weight，最后归一化即可
     def compute_weight(self, embed_flow, embed_conv_feat):
+        # 计算weight前进行l2 norm
         embed_flow_norm = mx.symbol.L2Normalization(data=embed_flow, mode='channel')
         embed_conv_norm = mx.symbol.L2Normalization(data=embed_conv_feat, mode='channel')
         weight = mx.symbol.sum(data=embed_flow_norm * embed_conv_norm, axis=1, keepdims=True)
 
         return weight
 
+    # 光流网络，输入数据为当前数据和先前的数据concat
     def get_flownet(self, data):
         resize_data = mx.symbol.Pooling(name='resize_data', data=data, pooling_convention='full', pad=(0, 0),
                                         kernel=(2, 2),
@@ -1023,42 +1034,56 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         self.sym = group
         return group
 
+    # 获得特征提取器
     def get_feat_symbol(self, cfg):
         # config alias for convenient
         num_classes = cfg.dataset.NUM_CLASSES
 
+        # 使用mxnet的symbol来构造网络的输入输出和结构定义
         data = mx.sym.Variable(name="data")
         im_info = mx.sym.Variable(name="im_info")
         data_cache = mx.sym.Variable(name="data_cache")
         feat_cache = mx.sym.Variable(name="feat_cache")
 
         # shared convolutional layers
+        # 这里的卷积网络采用resnet v1
         conv_feat = self.get_resnet_v1(data)
+        # embed特征和conv特征concat以后作为conv_embed
         embed_feat = self.get_embednet(conv_feat)
         conv_embed = mx.sym.Concat(conv_feat, embed_feat, name="conv_embed")
 
+        # mxnet中的group组合了conv_embed，im_info，data_cache和feat_cache
         group = mx.sym.Group([conv_embed, im_info, data_cache, feat_cache])
         self.sym = group
         return group
 
+    # 获得特征聚合的symbol
     def get_aggregation_symbol(self, cfg):
         # config alias for convenient
+        # 配置对象中的识别类别数，ImageNetVid数据集为31
         num_classes = cfg.dataset.NUM_CLASSES
+        # 如果类别无关，也就是RPN仅仅区分背景和目标，那么回归的类别数设置为2，否则设置回归的类别数为num_classes，如ImageNetVid为31
         num_reg_classes = (2 if cfg.CLASS_AGNOSTIC else num_classes)
+        # 网络Bounding box的锚点数目，这里为9，包括3中不同的scale和3中不同的aspect ratio
         num_anchors = cfg.network.NUM_ANCHORS
+        # 聚合视频帧的关键帧间隔，KEY_FRAME_INTERVAL=9
         data_range = cfg.TEST.KEY_FRAME_INTERVAL * 2 + 1
 
+        # 考虑到聚合需要保存先前的帧的数据和特征信息
         data_cur = mx.sym.Variable(name="data")                 # not used
         im_info = mx.sym.Variable(name="im_info")
         data_cache = mx.sym.Variable(name="data_cache")         # data_cache contains data_range images
         feat_cache = mx.sym.Variable(name="feat_cache")         # feat_cache contains the data_range feature maps of the images
 
         # make data_range copies of the center frame to pass through FlowNet
+        # 获得当前的数据
         cur_data = mx.symbol.slice_axis(data_cache, axis=0, begin=cfg.TEST.KEY_FRAME_INTERVAL, end=cfg.TEST.KEY_FRAME_INTERVAL+1)
         cur_data_copies = mx.sym.tile(cur_data, reps=(data_range, 1, 1, 1))
+        # 光流网络的输入为cur_data_copies和data_cache，这里flow_input的输入为光流计算两个图concat
         flow_input = mx.symbol.Concat(cur_data_copies / 255.0, data_cache / 255.0, dim=1)
         flow = self.get_flownet(flow_input)
-        
+
+        # 双线性采样
         flow_grid = mx.sym.GridGenerator(data=flow, transform_type='warp', name='flow_grid')
         conv_feat = mx.sym.BilinearSampler(data=feat_cache, grid=flow_grid, name='warping_feat')  # warped result
 
@@ -1066,19 +1091,25 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         conv_feat = mx.symbol.slice_axis(conv_feat, axis=1, begin=0, end=1024)
         
         # compute weight
+        # 计算的embed，同时根据embed计算自适应的weight
         cur_embed = mx.symbol.slice_axis(embed_output, axis=0, begin=cfg.TEST.KEY_FRAME_INTERVAL, end=cfg.TEST.KEY_FRAME_INTERVAL+1)
         cur_embed = mx.sym.tile(cur_embed, reps=(data_range, 1, 1, 1))
         unnormalize_weight = self.compute_weight(embed_output, cur_embed)
 
+        # 使用softmax对对应的进行归一化
         weights = mx.symbol.softmax(data=unnormalize_weight, axis=0)
 
         weights = mx.sym.SliceChannel(weights, axis=0, num_outputs=data_range)
         # tile part
+        # 聚合的卷积特征
         aggregated_conv_feat = 0
+        # warp后的卷积特征列表
         warp_list = mx.sym.SliceChannel(conv_feat, axis=0, num_outputs=data_range)
         for i in range(data_range):
             tiled_weight = mx.symbol.tile(data=weights[i], reps=(1, 1024, 1, 1))
-            aggregated_conv_feat += tiled_weight * warp_list[i]
+            # aggregated_conv_feat += tiled_weight * warp_list[i]
+            # 聚合方式，通过自适应权重聚合不同的卷积特征
+            aggregated_conv_feat = aggregated_conv_feat + tiled_weight * warp_list[i]
 
         #weights = mx.symbol.tile(data=weights, reps=(1, 1024, 1, 1))
         #aggregated_conv_feat = mx.sym.sum(weights * conv_feat, axis=0, keepdims=True)
@@ -1087,18 +1118,22 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         ##############################################
         # RPN
+        # RPN特征为第一个特征
         rpn_feat = conv_feats[0]
+        # RPN分类score和bbox回归pred
         rpn_cls_score = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
         rpn_bbox_pred = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=4 * num_anchors, name="rpn_bbox_pred")
 
+        # 归一化RPN输出，通过使用归一化MEAND和STDS来归一化BBOX
         if cfg.network.NORMALIZE_RPN:
             rpn_bbox_pred = mx.sym.Custom(
                 bbox_pred=rpn_bbox_pred, op_type='rpn_inv_normalize', num_anchors=num_anchors,
                 bbox_mean=cfg.network.ANCHOR_MEANS, bbox_std=cfg.network.ANCHOR_STDS)
 
         # ROI Proposal
+        # ROIj建议
         rpn_cls_score_reshape = mx.sym.Reshape(
             data=rpn_cls_score, shape=(0, 2, -1, 0), name="rpn_cls_score_reshape")
         rpn_cls_prob = mx.sym.SoftmaxActivation(
@@ -1106,6 +1141,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         rpn_cls_prob_reshape = mx.sym.Reshape(
             data=rpn_cls_prob, shape=(0, 2 * num_anchors, -1, 0), name='rpn_cls_prob_reshape')
         if cfg.TEST.CXX_PROPOSAL:
+            # MXNet的CXX_PROPOSAL
             rois = mx.contrib.sym.Proposal(
                 cls_prob=rpn_cls_prob_reshape, bbox_pred=rpn_bbox_pred, im_info=im_info, name='rois',
                 feature_stride=cfg.network.RPN_FEAT_STRIDE, scales=tuple(cfg.network.ANCHOR_SCALES),

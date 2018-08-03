@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -157,11 +158,15 @@ config.TEST.SEQ_NMS = False
 config.TEST.test_epoch = 0
 
 
+# 使用配置文件yaml格式来更新config中的配置参数
 def update_config(config_file):
     exp_config = None
     with open(config_file) as f:
+        # yaml文件load后转换为edict格式
+        # print(yaml.load(f))
         exp_config = edict(yaml.load(f))
         for k, v in exp_config.items():
+            # 如果配置项在原配置object中，那么更新相应的配置object
             if k in config:
                 if isinstance(v, dict):
                     if k == 'TRAIN':
@@ -178,4 +183,5 @@ def update_config(config_file):
                     else:
                         config[k] = v
             else:
+                # 配置文件中相应配置项必须预先定义在config.py中
                 raise ValueError("key must exist in config.py")

@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -188,16 +189,20 @@ class ImageNetVID(IMDB):
 ###################################################################################################
     def evaluate_detections(self, detections):
         """
+        评估检测结果，输入检测值即可
         top level evaluations
         :param detections: result matrix, [bbox, confidence]
         :return: None
         """
         # make all these folders for results
+        # 在result路径中增加results文件夹存放检测评估结果
         result_dir = os.path.join(self.result_path, 'results')
         if not os.path.exists(result_dir):
             os.mkdir(result_dir)
 
+        # 将vid检测结果写入
         self.write_vid_results(detections)
+        # 返回评估结果info
         info = self.do_python_eval()
         return info
 
@@ -231,6 +236,7 @@ class ImageNetVID(IMDB):
         info = self.do_python_eval_gen()
         return info
 
+    # 获取结果文件末班
     def get_result_file_template(self, gpu_id):
         """
         :return: a string template
@@ -311,6 +317,7 @@ class ImageNetVID(IMDB):
                                        dets[k, 0], dets[k, 1], dets[k, 2], dets[k, 3]))
         return
 
+    # 将检测结果VID写入
     def write_vid_results(self, all_boxes):
         """
         write results files in pascal devkit path
@@ -357,7 +364,6 @@ class ImageNetVID(IMDB):
                             f.write('{:d} {:d} {:.4f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.
                                     format(frame_ids[im_ind], cls_ind, dets[k, -1],
                                            dets[k, 0], dets[k, 1], dets[k, 2], dets[k, 3]))
-    
     def do_python_eval(self):
         """
         python evaluation wrapper

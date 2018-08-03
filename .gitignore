@@ -1,3 +1,5 @@
+demo/
+data/
 # IntelliJ project files
 .idea
 *.iml

@@ -14,6 +14,7 @@ network:
   pretrained: "./model/pretrained_model/resnet_v1_101"
   pretrained_flow: "./model/pretrained_model/flownet"
   pretrained_epoch: 0
+  # 像素预处理MEANS
   PIXEL_MEANS:
   - 103.06
   - 115.90
@@ -43,17 +44,24 @@ network:
   - 0.1
   - 0.4
   - 0.4
+  # 归一化RPN输出
   NORMALIZE_RPN: TRUE
   NUM_ANCHORS: 9
 dataset:
+#视频目标检测的类别数目
   NUM_CLASSES: 31
   dataset: ImageNetVID
   dataset_path: "./data/ILSVRC2015"
   image_set: DET_train_30classes+VID_train_15frames
+  # 测试训练数据集根目录
   root_path: "./data"
+  # 其中测试图像数据集为VID_val_videos
   test_image_set: VID_val_videos
+  # 数据集的区域建议来自于rpn网络中
   proposal: rpn
+  # 运动iou设置路径，根据不同的motion设置为slow，mediua和fast的motion目标
   motion_iou_path: './lib/dataset/imagenet_vid_groundtruth_motion_iou.mat'
+  # 使能详细的eval
   enable_detailed_eval: true
 TRAIN:
   lr: 0.00025
@@ -61,6 +69,7 @@ TRAIN:
   warmup: false
   begin_epoch: 0
   end_epoch: 2
+  # 模型文件前缀为fgfa_rfcn_vid
   model_prefix: 'fgfa_rfcn_vid'
   # whether resume training
   RESUME: false
@@ -86,7 +95,9 @@ TRAIN:
   BG_THRESH_HI: 0.5
   BG_THRESH_LO: 0.0
   # rcnn bounding box regression params
+  # rcnn bounding box回归参数
   BBOX_REGRESSION_THRESH: 0.5
+  # BBOX权重
   BBOX_WEIGHTS:
   - 1.0
   - 1.0
@@ -117,6 +128,7 @@ TRAIN:
   RPN_MIN_SIZE: 0
   # approximate bounding box regression
   BBOX_NORMALIZATION_PRECOMPUTED: true
+  # BBOX归一化的MEAND和STDS
   BBOX_MEANS:
   - 0.0
   - 0.0
@@ -129,12 +141,14 @@ TRAIN:
   - 0.2
 TEST:
   # use rpn to generate proposal
+  # HAS_RPN表示存在RPN，使用RPN网络来生成区域建议框
   HAS_RPN: true
   # size of images for each device
   BATCH_IMAGES: 1
   SEQ_NMS: false
   
   # RPN proposal
+  # MXNet编译的custom proposal
   CXX_PROPOSAL: true
   RPN_NMS_THRESH: 0.7
   RPN_PRE_NMS_TOP_N: 6000
@@ -142,4 +156,5 @@ TEST:
   RPN_MIN_SIZE: 0
   # RCNN nms
   NMS: 0.3
+  # 每隔多少epoch测试一次
   test_epoch: 2

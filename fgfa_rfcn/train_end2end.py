@@ -23,6 +23,7 @@ import sys
 from config.config import config, update_config
 
 def parse_args():
+    print('train_end2end----parse_args----in----')
     parser = argparse.ArgumentParser(description='Train R-FCN network')
     # general
     parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
@@ -34,6 +35,7 @@ def parse_args():
     # training
     parser.add_argument('--frequent', help='frequency of logging', default=config.default.frequent, type=int)
     args = parser.parse_args()
+    print('train_end2end----parse_args----out----')
     return args
 
 args = parse_args()

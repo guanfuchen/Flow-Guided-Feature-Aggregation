@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided-Feature-Aggregation
 # Copyright (c) 2017 Microsoft
@@ -20,6 +21,10 @@ def load_checkpoint(prefix, epoch):
     aux_params : dict of str to NDArray
         Model parameter, dict of name to NDArray of net's auxiliary states.
     """
+    print('load_checkpoint----in----')
+    print('!!!!!!!!!!!!!!load %s-%04d.params!!!!!!!!!!!!!!' % (prefix, epoch))
+    prefix='/home/cgf/GitHub/GitWeb/Flow-Guided-Feature-Aggregation/fgfa_rfcn/../model/rfcn_fgfa_flownet_vid'
+    epoch=0
     save_dict = mx.nd.load('%s-%04d.params' % (prefix, epoch))
     arg_params = {}
     aux_params = {}
@@ -29,6 +34,7 @@ def load_checkpoint(prefix, epoch):
             arg_params[name] = v
         if tp == 'aux':
             aux_params[name] = v
+    print('load_checkpoint----out----')
     return arg_params, aux_params
 
 
@@ -46,6 +52,7 @@ def convert_context(params, ctx):
 
 def load_param(prefix, epoch, convert=False, ctx=None, process=False):
     """
+    加载模型参数，模型名字的前缀，想要加载的模型周期数目
     wrapper for load checkpoint
     :param prefix: Prefix of model name.
     :param epoch: Epoch number of model we would like to load.

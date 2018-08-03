@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -45,9 +46,11 @@ def get_predictor(sym, sym_instance, cfg, arg_params, aux_params, test_data, ctx
                           arg_params=arg_params, aux_params=aux_params)
     return predictor
 
+# rcnn网络测试
 def test_rcnn(cfg, dataset, image_set, root_path, dataset_path, motion_iou_path,
               ctx, prefix, epoch,
               vis, ignore_cache, shuffle, has_rpn, proposal, thresh, logger=None, output_path=None, enable_detailed_eval=True):
+    # 设置logger打印日志
     if not logger:
         assert False, 'require a logger'
 
@@ -57,9 +60,11 @@ def test_rcnn(cfg, dataset, image_set, root_path, dataset_path, motion_iou_path,
 
     # load symbol and testing data
 
+    # 使用eval通过str来加载对应的对象包括feat和aggr对象，这里使用resnet_v1_101_flownet_rfcn.resnet_v1_101_flownet_rfcn
     feat_sym_instance = eval(cfg.symbol + '.' + cfg.symbol)()
     aggr_sym_instance = eval(cfg.symbol + '.' + cfg.symbol)()
 
+    # 通过get_feat_symobl来构造feature symbol，通过get_aggregation_symbol来构造aggr symbol
     feat_sym = feat_sym_instance.get_feat_symbol(cfg)
     aggr_sym = aggr_sym_instance.get_aggregation_symbol(cfg)
 
@@ -87,4 +92,5 @@ def test_rcnn(cfg, dataset, image_set, root_path, dataset_path, motion_iou_path,
     aggr_predictors = [get_predictor(aggr_sym, aggr_sym_instance, cfg, arg_params, aux_params, test_datas[i], [ctx[i]]) for i in range(gpu_num)]
 
     # start detection
+    # 使用多线程来评估预测结果
     pred_eval_multiprocess(gpu_num, feat_predictors, aggr_predictors, test_datas, imdb, cfg, vis=vis, ignore_cache=ignore_cache, thresh=thresh, logger=logger)

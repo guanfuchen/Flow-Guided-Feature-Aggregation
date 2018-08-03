@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -6,6 +7,7 @@
 # --------------------------------------------------------
 
 """
+给定imagenet vid imdb计算mAP
 given a imagenet vid imdb, compute mAP
 """
 
@@ -16,6 +18,7 @@ import scipy.io as sio
 import copy
 
 
+# 解析VID rec，输入的xml文件名
 def parse_vid_rec(filename, classhash, img_ids, defaultIOUthr=0.5, pixelTolerance=10):
     """
     parse imagenet vid record into a dictionary
@@ -25,16 +28,22 @@ def parse_vid_rec(filename, classhash, img_ids, defaultIOUthr=0.5, pixelToleranc
     import xml.etree.ElementTree as ET
     tree = ET.parse(filename)
     objects = []
+    # PASCAL VOC类似的标注格式
     for obj in tree.findall('object'):
+        # object bounding box标注数据
         obj_dict = dict()
+        # 从classhash中获取human readable标签
         obj_dict['label'] = classhash[obj.find('name').text]
         bbox = obj.find('bndbox')
+        # 获取对应的bbox标注数据，格式为xmin，ymin，xmax和ymax
         obj_dict['bbox'] = [float(bbox.find('xmin').text),
                             float(bbox.find('ymin').text),
                             float(bbox.find('xmax').text),
                             float(bbox.find('ymax').text)]
+        # ground truth object宽度和高度
         gt_w = obj_dict['bbox'][2] - obj_dict['bbox'][0] + 1
         gt_h = obj_dict['bbox'][3] - obj_dict['bbox'][1] + 1
+        # 像素容忍阈值IOU和defaultIOUthr中取最小值作为阈值
         thr = (gt_w*gt_h)/((gt_w+pixelTolerance)*(gt_h+pixelTolerance))
         obj_dict['thr'] = np.min([thr, defaultIOUthr])
         objects.append(obj_dict)
@@ -69,13 +78,14 @@ def vid_ap(rec, prec):
     return ap
 
 
+# VID根据不同的运动评估不同的map
 def vid_eval_motion(multifiles, detpath, annopath, imageset_file, classname_map, annocache, motion_iou_file, motion_ranges, area_ranges, ovthresh=0.5):
     """
     imagenet vid evaluation
     :param detpath: detection results detpath.format(classname)
     :param annopath: annotations annopath.format(classname)
     :param imageset_file: text file containing list of images
-    :param annocache: caching annotations
+    :param annocache: caching annotations 缓存标注
     :param ovthresh: overlap threshold
     :return: rec, prec, ap
     """
@@ -84,9 +94,11 @@ def vid_eval_motion(multifiles, detpath, annopath, imageset_file, classname_map,
             lines = [x.strip().split(' ') for x in f.readlines()]
     img_basenames = [x[0] for x in lines]
     gt_img_ids = [int(x[1]) for x in lines]
+    # classhash对应不同的0-len(classname_map)和classname_map
     classhash = dict(zip(classname_map, range(0,len(classname_map))))
 
-   # load annotations from cache
+    # load annotations from cache
+    # 如果缓存标注存在，加载缓存标注否则从新加载
     if not os.path.isfile(annocache):
         recs = []
         for ind, image_filename in enumerate(img_basenames):

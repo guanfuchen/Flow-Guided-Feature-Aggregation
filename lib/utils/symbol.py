@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided-Feature-Aggregation
 # Copyright (c) 2017 Microsoft
@@ -6,6 +7,8 @@
 # --------------------------------------------------------
 
 import numpy as np
+
+# 用来构造resnet_v1_101_flownet_rfcn网络的父类Symbol
 class Symbol:
     def __init__(self):
         self.arg_shape_dict = None

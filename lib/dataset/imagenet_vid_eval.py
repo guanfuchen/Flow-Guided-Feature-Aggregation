@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -67,17 +68,20 @@ def vid_ap(rec, prec):
     return ap
 
 
+# imagenet vid评估函数
 def vid_eval(multifiles, detpath, annopath, imageset_file, classname_map, annocache, ovthresh=0.5):
     """
     imagenet vid evaluation
-    :param detpath: detection results detpath.format(classname)
-    :param annopath: annotations annopath.format(classname)
-    :param imageset_file: text file containing list of images
-    :param annocache: caching annotations
-    :param ovthresh: overlap threshold
+    :param detpath: detection results detpath.format(classname) 检测结果路径
+    :param annopath: annotations annopath.format(classname) 标注结果路径
+    :param imageset_file: text file containing list of images 包含图像列表的文本文件
+    :param annocache: caching annotations 缓存标注
+    :param ovthresh: overlap threshold 设置overlap的阈值
     :return: rec, prec, ap
     """
+    # 打开待评估的图像集列表文本文件
     with open(imageset_file, 'r') as f:
+            # 每一行读取为ILSVRC2015_test_00000000/000000 1也就是img_basenames和gt_img_ids的格式
             lines = [x.strip().split(' ') for x in f.readlines()]
     img_basenames = [x[0] for x in lines]
     gt_img_ids = [int(x[1]) for x in lines]
