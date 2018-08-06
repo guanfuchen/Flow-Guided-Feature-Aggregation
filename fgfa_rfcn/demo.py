@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -90,6 +91,7 @@ def main():
     pprint.pprint(cfg)
     cfg.symbol = 'resnet_v1_101_flownet_rfcn'
     model = '/../model/rfcn_fgfa_flownet_vid'
+    # 关键帧间隔*2+1为所有帧的间隔，论文中设置的KEY_FRAME_INTERVAL为10
     all_frame_interval = cfg.TEST.KEY_FRAME_INTERVAL * 2 + 1
     max_per_image = cfg.TEST.max_per_image
     feat_sym_instance = eval(cfg.symbol + '.' + cfg.symbol)()

@@ -11,8 +11,11 @@ default:
   frequent: 100
   kvstore: device
 network:
+  # 特征网络预训练基础网络的结构，这里是resnet_v1_101
   pretrained: "./model/pretrained_model/resnet_v1_101"
+  # 预训练光流网络
   pretrained_flow: "./model/pretrained_model/flownet"
+  # 网络预先训练的周期为0
   pretrained_epoch: 0
   # 像素预处理MEANS
   PIXEL_MEANS:
@@ -64,32 +67,44 @@ dataset:
   # 使能详细的eval
   enable_detailed_eval: true
 TRAIN:
+  # end-to-end训练的学习率lr和对应的lr_step
   lr: 0.00025
   lr_step: '1.333'
+  # 不开启warmup
   warmup: false
+  # 训练开始epoch
   begin_epoch: 0
+  # 训练结束epoch，总共运行epoch为end_epoch-begin_epoch
   end_epoch: 2
   # 模型文件前缀为fgfa_rfcn_vid
   model_prefix: 'fgfa_rfcn_vid'
   # whether resume training
+  # 是否开启断点训练RESUME
   RESUME: false
   # whether flip image
+  # 是否需要翻转image
   FLIP: true
   # whether shuffle image
+  # 图像数据随机化开启
   SHUFFLE: true
   # whether use OHEM
+  # 是否使用OHEM，在线困难样例挖掘
   ENABLE_OHEM: true
   # size of images for each device, 1 for e2e
+  # 每一个设备处理的图像大小，对于end-2-end的模型训练，BATCH_IMAGES为1
   BATCH_IMAGES: 1
   # e2e changes behavior of anchor loader and metric
+  # 开启END2END，也影响了不同的锚点加载器和评估期的行为
   END2END: true
   # group images with similar aspect ratio
+  # 是否将有相同的aspect ratio的图像组合在一起
   ASPECT_GROUPING: true
   # R-CNN
   # rcnn rois batch size
   BATCH_ROIS: -1
   BATCH_ROIS_OHEM: 128
   # rcnn rois sampling params
+  # rcnn中rois前景和背景的采样参数，其中FG:BG=1:3，同时和gt覆盖超过0.5为前景，背景则由0.0和0.5之间的覆盖值即可
   FG_FRACTION: 0.25
   FG_THRESH: 0.5
   BG_THRESH_HI: 0.5
@@ -106,13 +121,16 @@ TRAIN:
 
   # RPN anchor loader
   # rpn anchors batch size
+  # RPN中的batch size
   RPN_BATCH_SIZE: 256
   # rpn anchors sampling params
+  # rpn锚点采样参数，其中FC:BG=1:1，正例样本覆盖率为超过0.7，负例样本覆盖率为小于0.3
   RPN_FG_FRACTION: 0.5
   RPN_POSITIVE_OVERLAP: 0.7
   RPN_NEGATIVE_OVERLAP: 0.3
   RPN_CLOBBER_POSITIVES: false
   # rpn bounding box regression params
+  # RPN的BBOX weights正则化参数
   RPN_BBOX_WEIGHTS:
   - 1.0
   - 1.0
@@ -122,11 +140,15 @@ TRAIN:
   # used for end2end training
   # RPN proposal
   CXX_PROPOSAL: true
+  # RPN非极大值阈值
   RPN_NMS_THRESH: 0.7
+  # RPN在NMS前取TOP 6000作为RPN，在NMS后取TOP 300作为RPN训练
   RPN_PRE_NMS_TOP_N: 6000
   RPN_POST_NMS_TOP_N: 300
+  # RPN最小的大小
   RPN_MIN_SIZE: 0
   # approximate bounding box regression
+  # 是否开启BBOX正则化预先计算
   BBOX_NORMALIZATION_PRECOMPUTED: true
   # BBOX归一化的MEAND和STDS
   BBOX_MEANS:
@@ -145,6 +167,7 @@ TEST:
   HAS_RPN: true
   # size of images for each device
   BATCH_IMAGES: 1
+  # 是否使用SEQ NMS来增加检测效果
   SEQ_NMS: false
   
   # RPN proposal

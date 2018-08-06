@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -23,19 +24,22 @@ import sys
 from config.config import config, update_config
 
 def parse_args():
-    print('train_end2end----parse_args----in----')
+    # print('train_end2end----parse_args----in----')
     parser = argparse.ArgumentParser(description='Train R-FCN network')
     # general
     parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
 
+    # 首先解析已经know_args，这里是--cfg也就是对应的端到端训练的配置文件
     args, rest = parser.parse_known_args()
     # update config
+    # 将加载的cfg文件中更新到原先默认的config中
     update_config(args.cfg)
 
     # training
+    # 训练batch打印日志频率
     parser.add_argument('--frequent', help='frequency of logging', default=config.default.frequent, type=int)
     args = parser.parse_args()
-    print('train_end2end----parse_args----out----')
+    # print('train_end2end----parse_args----out----')
     return args
 
 args = parse_args()
@@ -57,10 +61,12 @@ from utils.PrefetchingIter import PrefetchingIter
 from utils.lr_scheduler import WarmupMultiFactorScheduler
 
 def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch, end_epoch, lr, lr_step):
+    # 创建相应的日志记录器和最后的输出路径
     logger, final_output_path = create_logger(config.output_path, args.cfg, config.dataset.image_set)
     prefix = os.path.join(final_output_path, prefix)
 
     # load symbol
+    # 加载symbol，这里为resnet_v1_101_flownet_rfcn
     shutil.copy2(os.path.join(curr_path, 'symbols', config.symbol + '.py'), final_output_path)
     sym_instance = eval(config.symbol + '.' + config.symbol)()
     sym = sym_instance.get_train_symbol(config)
@@ -173,7 +179,9 @@ def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch
 
 def main():
     print('Called with argument:', args)
+    # 使用gpu ctx=(0,1,2,3)进行网络的训练
     ctx = [mx.gpu(int(i)) for i in config.gpus.split(',')]
+    # 训练fgfa_rfcn网络，输入参数包括args，ctx训练设备的ctx，特征提取网络模型预训练weights，光流网络模型预训练weights，网络预训练epoch，网络模型的前缀，网络训练开始和结束的周期，以及学习率和学习率step
     train_net(args, ctx, config.network.pretrained, config.network.pretrained_flow, config.network.pretrained_epoch, config.TRAIN.model_prefix,
               config.TRAIN.begin_epoch, config.TRAIN.end_epoch, config.TRAIN.lr, config.TRAIN.lr_step)
 
