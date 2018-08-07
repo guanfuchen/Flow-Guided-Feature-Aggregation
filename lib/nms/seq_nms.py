@@ -1,3 +1,4 @@
+# coding=utf-8
 # --------------------------------------------------------
 # Flow-Guided Feature Aggregation
 # Copyright (c) 2017 Microsoft
@@ -19,6 +20,7 @@ import time
 import copy
 import cPickle as pickle
 import os
+import numpy as np
 
 CLASSES = ('__background__',
            'airplane', 'antelope', 'bear', 'bicycle', 'bird', 'bus',
@@ -34,32 +36,46 @@ MAX_THRESH=1e-2
 
 
 def createLinks(dets_all):
+    """
+    创建相邻帧的连接构造图，连接规则是相邻帧的目标框IOU>0.5的目标框进行连接
+    :param dets_all:
+    :return:
+    """
     links_all = []
 
+    # 帧数目dets_all的shape为（#CLASSES, T） 其中T为帧数目，#CLASSES为类别数目，这里为（30,144），也就是30个类别，144帧
     frame_num = len(dets_all[0])
+    # 总共类别len(CLASSES)（包括目标类），实际类别为len(CLASSES)-1
     cls_num = len(CLASSES) - 1
+    # 遍历规则是对于每一个类别遍历，然后在帧间遍历
     for cls_ind in range(cls_num):
         links_cls = []
         for frame_ind in range(frame_num - 1):
+            # 当前帧和后一帧检测类别的检测结果
             dets1 = dets_all[cls_ind][frame_ind]
             dets2 = dets_all[cls_ind][frame_ind + 1]
+            # 对应检测结果的box_num
             box1_num = len(dets1)
             box2_num = len(dets2)
             
             if frame_ind == 0:
+                # 第一帧的情况下，面积计算为第一帧的面积box格式为（xmin, ymin，xmax，ymax）
                 areas1 = np.empty(box1_num)
                 for box1_ind, box1 in enumerate(dets1):
                     areas1[box1_ind] = (box1[2] - box1[0] + 1) * (box1[3] - box1[1] + 1)
             else:
+                # 记录上一帧的面积
                 areas1 = areas2
 
             areas2 = np.empty(box2_num)
             for box2_ind, box2 in enumerate(dets2):
                 areas2[box2_ind] = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
 
+            # 连接帧
             links_frame = []
             for box1_ind, box1 in enumerate(dets1):
                 area1 = areas1[box1_ind]
+                # 当前帧和后一帧所有的IOU计算
                 x1 = np.maximum(box1[0], dets2[:, 0])
                 y1 = np.maximum(box1[1], dets2[:, 1])
                 x2 = np.minimum(box1[2], dets2[:, 2])
@@ -67,9 +83,12 @@ def createLinks(dets_all):
                 w = np.maximum(0.0, x2 - x1 + 1)
                 h = np.maximum(0.0, y2 - y1 + 1)
                 inter = w * h
+                # 计算IOU
                 ovrs = inter / (area1 + areas2 - inter)
+                # 连接所有IOU>IOU_THRESH的box
                 links_box = [ovr_ind for ovr_ind, ovr in enumerate(ovrs) if
                              ovr >= IOU_THRESH]
+                # 连接满足连接IOU条件的links，没有则为[]
                 links_frame.append(links_box)
             links_cls.append(links_frame)
         links_all.append(links_cls)
@@ -77,9 +96,13 @@ def createLinks(dets_all):
 
 
 def maxPath(dets_all, links_all):
-
+    """
+    查找links_all中最大dets置信度的路径
+    :param dets_all: 所有类别在每一帧中的检测框
+    :param links_all: 相邻帧bbox IOU>0.5的连接构造图
+    :return:
+    """
     for cls_ind, links_cls in enumerate(links_all):
-
         max_begin = time.time()
         delete_sets=[[]for i in range(0,len(dets_all[0]))]
         delete_single_box=[]
@@ -103,8 +126,10 @@ def maxPath(dets_all, links_all):
             if (len(maxpath)==1):
                 delete=[rootindex,maxpath[0]]
                 delete_single_box.append(delete)
+            # 重新打分
             rescore(dets_cls, rootindex, maxpath, maxsum)
             t4=time.time()
+            # 删除Link，IOU大于一定的NMS抑制
             delete_set,num_delete=deleteLink(dets_cls, links_cls, rootindex, maxpath, NMS_THRESH)
             sum_links-=num_delete
             for i, box_ind in enumerate(maxpath):
@@ -146,7 +171,7 @@ def findMaxPath(links,dets,delete_single_box):
 
 
     for i in xrange(1,num_frame):
-        l1=i-1;
+        l1=i-1
         for box_id,box in enumerate(links[l1]):
             for next_box_id in box:
 
@@ -172,9 +197,19 @@ def findMaxPath(links,dets,delete_single_box):
 
 
 def rescore(dets, rootindex, maxpath, maxsum):
+    """
+    重打分
+    :param dets:
+    :param rootindex:
+    :param maxpath:
+    :param maxsum:
+    :return:
+    """
+    # 平均重打分
     newscore = maxsum / len(maxpath)
 
     for i, box_ind in enumerate(maxpath):
+        # 对于这些最大path的打分为较高的score
         dets[rootindex + i][box_ind][4] = newscore
 
 
@@ -218,7 +253,14 @@ def deleteLink(dets, links, rootindex, maxpath, thesh):
     return delete_set,num_delete_links
 
 def seq_nms(dets):
+    """"
+    seq_nms：序列非极大值抑制，输入为检测框结果（包含检测框bbox和scores）
+    """
+    # print('dets:', dets)
+    print('dets.shape:', np.array(dets).shape)
+    # 创建相邻帧的连接构造图
     links = createLinks(dets)
+    # 动态规划算法求解最大dets之和的连接路径
     dets=maxPath(dets, links)
     return dets
 

@@ -127,8 +127,8 @@ TEST:
   # size of images for each device
   BATCH_IMAGES: 1
   # 是否使用SEQ_NMS来增强检测效果
-  SEQ_NMS: false
-#  SEQ_NMS: true
+#  SEQ_NMS: false
+  SEQ_NMS: true
 
   # RPN proposal
   CXX_PROPOSAL: true
